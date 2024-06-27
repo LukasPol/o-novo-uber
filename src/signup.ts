@@ -1,59 +1,30 @@
-import crypto from "crypto";
-import pgp from "pg-promise";
-import { validateCpf } from "./validateCpf";
+import { Driver, IAccount, Passanger } from "./account";
+import { AccountRepository } from "./account_repository";
 
 export async function signup (input: any): Promise<any> {
-	const connection = pgp()("postgres://postgres:password@localhost:5432/mydatabase");
 	try {
-		const id = crypto.randomUUID();
+		let account: IAccount;
 
-		const [acc] = await connection.query("select * from cccat17.account where email = $1", [input.email]);
-		if (!acc) {
-
-			if (input.name.match(/[a-zA-Z] [a-zA-Z]+/)) {
-				if (input.email.match(/^(.+)@(.+)$/)) {
-
-					if (validateCpf(input.cpf)) {
-						if (input.isDriver) {
-							if (input.carPlate.match(/[A-Z]{3}[0-9]{4}/)) {
-								await connection.query("insert into cccat17.account (account_id, name, email, cpf, car_plate, is_passenger, is_driver) values ($1, $2, $3, $4, $5, $6, $7)", [id, input.name, input.email, input.cpf, input.carPlate, !!input.isPassenger, !!input.isDriver]);
-								
-								const obj = {
-									accountId: id
-								};
-								return obj;
-							} else {
-								// invalid car plate
-								return -5;
-							}
-						} else {
-							await connection.query("insert into cccat17.account (account_id, name, email, cpf, car_plate, is_passenger, is_driver) values ($1, $2, $3, $4, $5, $6, $7)", [id, input.name, input.email, input.cpf, input.carPlate, !!input.isPassenger, !!input.isDriver]);
-
-							const obj = {
-								accountId: id
-							};
-							return obj;
-						}
-					} else {
-						// invalid cpf
-						return -1;
-					}
-				} else {
-					// invalid email
-					return -2;
-				}
-
-			} else {
-				// invalid name
-				return -3;
-			}
-
+		if (input.is_driver) {
+			account = new Driver(input)
 		} else {
-			// already exists
-			return -4;
+			account = new Passanger(input)
 		}
 
-	} finally {
-		await connection.$pool.end();
+		account.validate()
+
+		const reposiroty = new AccountRepository
+    const same_email = await reposiroty.find('email', account.email)
+		if (same_email) throw new Error("Email already exists")
+
+		if (account.is_driver) { account.validateCarPlate() }
+		await reposiroty.save(account)
+
+		const obj = {
+			accountId: account.account_id
+		};
+		return obj;
+	} catch (error: any) {
+		return error
 	}
 }

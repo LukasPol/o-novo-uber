@@ -4,7 +4,7 @@ services:
   # =================================================
   pg-docker:
     user: root
-    image: postgres:14-alpine
+    image: postgres:16.1-alpine
     container_name: dev-postgresql
     environment:
       POSTGRES_DB: mydatabase
